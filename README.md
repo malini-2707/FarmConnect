@@ -188,12 +188,10 @@ NODE_ENV=production
 ## Support
 
 For support and questions:
-- Email: info@farmconnect.com
+- Email: jagatheeshlogu005@gmail.com
 - Phone: +91 98765 43210
 
-## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
 
 ---
 
