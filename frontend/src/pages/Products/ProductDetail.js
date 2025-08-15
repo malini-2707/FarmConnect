@@ -23,7 +23,20 @@ const ProductDetail = () => {
     },
     deliveryDate: ''
   });
+  // Customer order flow
+  const [orderData, setOrderData] = useState({
+    quantity: 1,
+    deliveryInstructions: '',
+    deliveryAddress: {
+      street: '',
+      city: '',
+      state: '',
+      zipCode: ''
+    },
+    paymentMethod: 'cod'
+  });
   const [showRequestForm, setShowRequestForm] = useState(false);
+  const [showOrderForm, setShowOrderForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -38,12 +51,73 @@ const ProductDetail = () => {
         ...prev,
         proposedPrice: response.data.price
       }));
+      // Prefill order address from user profile if available
+      if (user && user.address) {
+        setOrderData(prev => ({
+          ...prev,
+          deliveryAddress: {
+            street: user.address.street || '',
+            city: user.address.city || '',
+            state: user.address.state || '',
+            zipCode: user.address.zipCode || ''
+          }
+        }));
+      }
     } catch (error) {
       console.error('Error fetching product:', error);
       toast.error('Product not found');
       navigate('/products');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Customer order handlers
+  const handleOrderChange = (e) => {
+    const { name, value } = e.target;
+    if (name.startsWith('deliveryAddress.')) {
+      const addressField = name.split('.')[1];
+      setOrderData(prev => ({
+        ...prev,
+        deliveryAddress: { ...prev.deliveryAddress, [addressField]: value }
+      }));
+    } else {
+      setOrderData(prev => ({ ...prev, [name]: value }));
+    }
+  };
+
+  const handlePlaceOrder = async (e) => {
+    e.preventDefault();
+    if (!isAuthenticated) {
+      toast.error('Please login to place an order');
+      navigate('/login');
+      return;
+    }
+    if (user.role !== 'customer') {
+      toast.error('Only customers can place orders');
+      return;
+    }
+    if (Number(orderData.quantity) > Number(product.quantity)) {
+      toast.error('Requested quantity exceeds available stock');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const payload = {
+        products: [{ product: product._id, quantity: Number(orderData.quantity) }],
+        deliveryAddress: orderData.deliveryAddress,
+        deliveryInstructions: orderData.deliveryInstructions,
+        paymentMethod: orderData.paymentMethod
+      };
+      await axios.post('/api/orders', payload);
+      toast.success('Order placed successfully');
+      setShowOrderForm(false);
+      navigate('/dashboard/customer');
+    } catch (error) {
+      console.error('Place order error:', error);
+      toast.error(error.response?.data?.message || 'Failed to place order');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -255,18 +329,18 @@ const ProductDetail = () => {
 
               {/* Action Buttons */}
               <div className="space-y-4">
-                {isAuthenticated && user.role === 'buyer' && user.id !== product.seller._id ? (
+                {isAuthenticated && user.role === 'customer' && user.id !== product.seller._id ? (
                   <>
                     <button
-                      onClick={() => setShowRequestForm(!showRequestForm)}
+                      onClick={() => setShowOrderForm(!showOrderForm)}
                       className="w-full btn-primary"
                     >
-                      Make Purchase Request
+                      Place Order
                     </button>
                     
-                    {showRequestForm && (
-                      <form onSubmit={handleSubmitRequest} className="space-y-4 p-4 bg-gray-50 rounded-lg">
-                        <h4 className="font-semibold">Purchase Request Details</h4>
+                    {showOrderForm && (
+                      <form onSubmit={handlePlaceOrder} className="space-y-4 p-4 bg-gray-50 rounded-lg">
+                        <h4 className="font-semibold">Order Details</h4>
                         
                         <div className="grid grid-cols-2 gap-4">
                           <div>
@@ -278,55 +352,43 @@ const ProductDetail = () => {
                               name="quantity"
                               min="1"
                               max={product.quantity}
-                              value={requestData.quantity}
-                              onChange={handleRequestChange}
+                              value={orderData.quantity}
+                              onChange={handleOrderChange}
                               className="input-field"
                               required
                             />
                           </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Proposed Price (₹/{product.unit})
-                            </label>
-                            <input
-                              type="number"
-                              name="proposedPrice"
-                              min="0"
-                              step="0.01"
-                              value={requestData.proposedPrice}
-                              onChange={handleRequestChange}
-                              className="input-field"
-                              required
-                            />
+                          <div className="pt-7 text-right">
+                            <div className="text-sm text-gray-600">Total</div>
+                            <div className="text-xl font-semibold">₹{(Number(orderData.quantity||0)*Number(product.price||0)).toFixed(2)}</div>
                           </div>
                         </div>
 
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Message (Optional)
+                            Delivery Instructions (Optional)
                           </label>
                           <textarea
-                            name="message"
-                            value={requestData.message}
-                            onChange={handleRequestChange}
+                            name="deliveryInstructions"
+                            value={orderData.deliveryInstructions}
+                            onChange={handleOrderChange}
                             className="input-field"
                             rows="3"
-                            placeholder="Any special requirements or message for the seller..."
+                            placeholder="Any special requirements for delivery..."
                           />
                         </div>
 
+                        {/* Payment Method */}
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Preferred Delivery Date (Optional)
-                          </label>
-                          <input
-                            type="date"
-                            name="deliveryDate"
-                            value={requestData.deliveryDate}
-                            onChange={handleRequestChange}
-                            className="input-field"
-                            min={new Date().toISOString().split('T')[0]}
-                          />
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
+                          <div className="grid grid-cols-2 gap-2">
+                            {['cod','upi','card','net_banking'].map(pm => (
+                              <label key={pm} className="flex items-center space-x-2 p-2 rounded border">
+                                <input type="radio" name="paymentMethod" value={pm} checked={orderData.paymentMethod===pm} onChange={handleOrderChange} />
+                                <span className="capitalize">{pm.replace('_',' ')}</span>
+                              </label>
+                            ))}
+                          </div>
                         </div>
 
                         <div className="space-y-2">
@@ -336,8 +398,8 @@ const ProductDetail = () => {
                           <input
                             type="text"
                             name="deliveryAddress.street"
-                            value={requestData.deliveryAddress.street}
-                            onChange={handleRequestChange}
+                            value={orderData.deliveryAddress.street}
+                            onChange={handleOrderChange}
                             className="input-field"
                             placeholder="Street Address"
                           />
@@ -345,24 +407,24 @@ const ProductDetail = () => {
                             <input
                               type="text"
                               name="deliveryAddress.city"
-                              value={requestData.deliveryAddress.city}
-                              onChange={handleRequestChange}
+                              value={orderData.deliveryAddress.city}
+                              onChange={handleOrderChange}
                               className="input-field"
                               placeholder="City"
                             />
                             <input
                               type="text"
                               name="deliveryAddress.state"
-                              value={requestData.deliveryAddress.state}
-                              onChange={handleRequestChange}
+                              value={orderData.deliveryAddress.state}
+                              onChange={handleOrderChange}
                               className="input-field"
                               placeholder="State"
                             />
                             <input
                               type="text"
                               name="deliveryAddress.zipCode"
-                              value={requestData.deliveryAddress.zipCode}
-                              onChange={handleRequestChange}
+                              value={orderData.deliveryAddress.zipCode}
+                              onChange={handleOrderChange}
                               className="input-field"
                               placeholder="ZIP"
                             />
@@ -375,11 +437,11 @@ const ProductDetail = () => {
                             disabled={submitting}
                             className="btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
                           >
-                            {submitting ? 'Submitting...' : 'Submit Request'}
+                            {submitting ? 'Placing...' : 'Place Order'}
                           </button>
                           <button
                             type="button"
-                            onClick={() => setShowRequestForm(false)}
+                            onClick={() => setShowOrderForm(false)}
                             className="btn-secondary flex-1"
                           >
                             Cancel
@@ -393,12 +455,12 @@ const ProductDetail = () => {
                     onClick={() => navigate('/login')}
                     className="w-full btn-primary"
                   >
-                    Login to Make Purchase Request
+                    Login to Place Order
                   </button>
-                ) : user.role === 'seller' ? (
+                ) : user.role === 'farmer' ? (
                   <div className="text-center p-4 bg-yellow-50 rounded-lg">
                     <p className="text-yellow-800">
-                      Switch to a buyer account to make purchase requests
+                      Switch to a customer account to place orders
                     </p>
                   </div>
                 ) : (

@@ -10,14 +10,21 @@ const Register = () => {
     email: '',
     password: '',
     confirmPassword: '',
-    role: 'buyer',
+    role: 'customer',
     phone: '',
     address: {
       street: '',
       city: '',
       state: '',
       zipCode: ''
-    }
+    },
+    // Farmer-specific fields
+    farmName: '',
+    farmType: '',
+    // Delivery partner-specific fields
+    vehicleType: '',
+    vehicleNumber: '',
+    licenseNumber: ''
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -62,12 +69,43 @@ const Register = () => {
     setLoading(true);
 
     try {
-      const { confirmPassword, ...registrationData } = formData;
+      const { confirmPassword, farmName, farmType, vehicleType, vehicleNumber, licenseNumber, ...baseData } = formData;
+      
+      // Prepare registration data based on role
+      const registrationData = { ...baseData };
+      
+      if (formData.role === 'farmer') {
+        registrationData.farmName = farmName;
+        registrationData.farmType = farmType;
+      } else if (formData.role === 'delivery_partner') {
+        registrationData.vehicleType = vehicleType;
+        registrationData.vehicleNumber = vehicleNumber;
+        registrationData.licenseNumber = licenseNumber;
+      }
+      
       const result = await register(registrationData);
       
       if (result.success) {
         toast.success('Registration successful!');
-        navigate('/dashboard');
+        
+        // Route based on user role
+        const userRole = result.user?.role || formData.role;
+        switch (userRole) {
+          case 'customer':
+            navigate('/dashboard/customer');
+            break;
+          case 'farmer':
+            navigate('/dashboard/farmer');
+            break;
+          case 'delivery_partner':
+            navigate('/dashboard/delivery');
+            break;
+          case 'admin':
+            navigate('/admin/dashboard');
+            break;
+          default:
+            navigate('/dashboard');
+        }
       } else {
         toast.error(result.error);
       }
@@ -100,45 +138,133 @@ const Register = () => {
               <label className="block text-sm font-medium text-gray-700 mb-3">
                 I want to join as:
               </label>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4">
                 <label className="cursor-pointer">
                   <input
                     type="radio"
                     name="role"
-                    value="buyer"
-                    checked={formData.role === 'buyer'}
+                    value="customer"
+                    checked={formData.role === 'customer'}
                     onChange={handleChange}
                     className="sr-only"
                   />
                   <div className={`p-4 border-2 rounded-lg text-center transition-colors ${
-                    formData.role === 'buyer' 
+                    formData.role === 'customer' 
                       ? 'border-primary-500 bg-primary-50 text-primary-700' 
                       : 'border-gray-300 hover:border-gray-400'
                   }`}>
-                    <div className="font-medium">Buyer</div>
-                    <div className="text-sm text-gray-500">Purchase fresh produce</div>
+                    <div className="font-medium">Customer</div>
+                    <div className="text-sm text-gray-500">Purchase fresh produce from farmers</div>
                   </div>
                 </label>
                 <label className="cursor-pointer">
                   <input
                     type="radio"
                     name="role"
-                    value="seller"
-                    checked={formData.role === 'seller'}
+                    value="farmer"
+                    checked={formData.role === 'farmer'}
                     onChange={handleChange}
                     className="sr-only"
                   />
                   <div className={`p-4 border-2 rounded-lg text-center transition-colors ${
-                    formData.role === 'seller' 
+                    formData.role === 'farmer' 
                       ? 'border-primary-500 bg-primary-50 text-primary-700' 
                       : 'border-gray-300 hover:border-gray-400'
                   }`}>
-                    <div className="font-medium">Seller</div>
-                    <div className="text-sm text-gray-500">Sell your products</div>
+                    <div className="font-medium">Farmer</div>
+                    <div className="text-sm text-gray-500">Sell your farm produce directly to customers</div>
+                  </div>
+                </label>
+                <label className="cursor-pointer">
+                  <input
+                    type="radio"
+                    name="role"
+                    value="delivery_partner"
+                    checked={formData.role === 'delivery_partner'}
+                    onChange={handleChange}
+                    className="sr-only"
+                  />
+                  <div className={`p-4 border-2 rounded-lg text-center transition-colors ${
+                    formData.role === 'delivery_partner' 
+                      ? 'border-primary-500 bg-primary-50 text-primary-700' 
+                      : 'border-gray-300 hover:border-gray-400'
+                  }`}>
+                    <div className="font-medium">Delivery Partner</div>
+                    <div className="text-sm text-gray-500">Deliver products from farmers to customers</div>
                   </div>
                 </label>
               </div>
             </div>
+
+            {/* Role-specific fields */}
+            {formData.role === 'farmer' && (
+              <div className="space-y-4 p-4 bg-green-50 rounded-lg border border-green-200">
+                <h3 className="font-medium text-green-800">Farm Details</h3>
+                <div className="grid grid-cols-1 gap-4">
+                  <input
+                    name="farmName"
+                    type="text"
+                    value={formData.farmName}
+                    onChange={handleChange}
+                    className="input-field"
+                    placeholder="Farm Name"
+                  />
+                  <select
+                    name="farmType"
+                    value={formData.farmType}
+                    onChange={handleChange}
+                    className="input-field"
+                  >
+                    <option value="">Select Farm Type</option>
+                    <option value="organic">Organic Farm</option>
+                    <option value="conventional">Conventional Farm</option>
+                    <option value="hydroponic">Hydroponic Farm</option>
+                    <option value="greenhouse">Greenhouse Farm</option>
+                    <option value="dairy">Dairy Farm</option>
+                    <option value="poultry">Poultry Farm</option>
+                    <option value="mixed">Mixed Farm</option>
+                  </select>
+                </div>
+              </div>
+            )}
+
+            {formData.role === 'delivery_partner' && (
+              <div className="space-y-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <h3 className="font-medium text-blue-800">Vehicle Details</h3>
+                <div className="grid grid-cols-1 gap-4">
+                  <select
+                    name="vehicleType"
+                    value={formData.vehicleType}
+                    onChange={handleChange}
+                    className="input-field"
+                  >
+                    <option value="">Select Vehicle Type</option>
+                    <option value="bike">Motorcycle/Bike</option>
+                    <option value="scooter">Scooter</option>
+                    <option value="car">Car</option>
+                    <option value="van">Van</option>
+                    <option value="truck">Truck</option>
+                    <option value="bicycle">Bicycle</option>
+                  </select>
+                  <input
+                    name="vehicleNumber"
+                    type="text"
+                    value={formData.vehicleNumber}
+                    onChange={handleChange}
+                    className="input-field"
+                    placeholder="Vehicle Number (e.g., KA01AB1234)"
+                  />
+                  <input
+                    name="licenseNumber"
+                    type="text"
+                    value={formData.licenseNumber}
+                    onChange={handleChange}
+                    className="input-field"
+                    placeholder="Driving License Number"
+                  />
+                </div>
+              </div>
+            )}
 
             {/* Name */}
             <div>
@@ -146,7 +272,7 @@ const Register = () => {
                 Full Name
               </label>
               <div className="mt-1 relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <div className="input-icon">
                   <FiUser className="h-5 w-5 text-gray-400" />
                 </div>
                 <input
@@ -168,7 +294,7 @@ const Register = () => {
                 Email address
               </label>
               <div className="mt-1 relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <div className="input-icon">
                   <FiMail className="h-5 w-5 text-gray-400" />
                 </div>
                 <input
@@ -191,7 +317,7 @@ const Register = () => {
                 Phone Number
               </label>
               <div className="mt-1 relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <div className="input-icon">
                   <FiPhone className="h-5 w-5 text-gray-400" />
                 </div>
                 <input
@@ -256,7 +382,7 @@ const Register = () => {
                 Password
               </label>
               <div className="mt-1 relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <div className="input-icon">
                   <FiLock className="h-5 w-5 text-gray-400" />
                 </div>
                 <input
@@ -289,7 +415,7 @@ const Register = () => {
                 Confirm Password
               </label>
               <div className="mt-1 relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <div className="input-icon">
                   <FiLock className="h-5 w-5 text-gray-400" />
                 </div>
                 <input

@@ -54,15 +54,14 @@ const Dashboard = () => {
             Welcome back, {user?.name}!
           </h1>
           <p className="text-gray-600 mt-2">
-            {user?.role === 'seller' 
+            {['seller', 'farmer'].includes(user?.role) 
               ? 'Manage your products and track your sales' 
-              : 'Browse products and manage your purchase requests'
-            }
+              : 'Browse products and manage your purchase requests'}
           </p>
         </div>
 
         {/* Role-specific Dashboard */}
-        {user?.role === 'seller' ? (
+        {['seller', 'farmer'].includes(user?.role) ? (
           <SellerDashboard stats={stats} />
         ) : (
           <BuyerDashboard stats={stats} />

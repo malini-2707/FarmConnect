@@ -189,7 +189,7 @@ NODE_ENV=production
 
 For support and questions:
 - Email: jagatheeshlogu005@gmail.com
-- Phone: +91 98765 43210
+- Phone: +91 9042474771
 
 
 

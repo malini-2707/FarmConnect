@@ -200,7 +200,7 @@ const Profile = () => {
                     Full Name
                   </label>
                   <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <div className="input-icon">
                       <FiUser className="h-5 w-5 text-gray-400" />
                     </div>
                     <input
@@ -209,7 +209,7 @@ const Profile = () => {
                       value={formData.name}
                       onChange={handleChange}
                       disabled={!editing}
-                      className={`input-field pl-10 ${!editing ? 'bg-gray-50' : ''}`}
+                      className={`input-field-with-icon ${!editing ? 'bg-gray-50' : ''}`}
                       required
                     />
                   </div>
@@ -220,14 +220,14 @@ const Profile = () => {
                     Email Address
                   </label>
                   <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <div className="input-icon">
                       <FiMail className="h-5 w-5 text-gray-400" />
                     </div>
                     <input
                       type="email"
                       value={user.email}
                       disabled
-                      className="input-field pl-10 bg-gray-50"
+                      className="input-field-with-icon bg-gray-50"
                     />
                   </div>
                   <p className="text-xs text-gray-500 mt-1">Email cannot be changed</p>
@@ -238,7 +238,7 @@ const Profile = () => {
                     Phone Number
                   </label>
                   <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <div className="input-icon">
                       <FiPhone className="h-5 w-5 text-gray-400" />
                     </div>
                     <input
@@ -247,7 +247,7 @@ const Profile = () => {
                       value={formData.phone}
                       onChange={handleChange}
                       disabled={!editing}
-                      className={`input-field pl-10 ${!editing ? 'bg-gray-50' : ''}`}
+                      className={`input-field-with-icon ${!editing ? 'bg-gray-50' : ''}`}
                       required
                     />
                   </div>
@@ -258,14 +258,14 @@ const Profile = () => {
                     Account Type
                   </label>
                   <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <div className="input-icon">
                       <FiUser className="h-5 w-5 text-gray-400" />
                     </div>
                     <input
                       type="text"
                       value={user.role.charAt(0).toUpperCase() + user.role.slice(1)}
                       disabled
-                      className="input-field pl-10 bg-gray-50"
+                      className="input-field-with-icon bg-gray-50"
                     />
                   </div>
                   <p className="text-xs text-gray-500 mt-1">Account type cannot be changed</p>

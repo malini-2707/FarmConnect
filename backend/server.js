@@ -4,6 +4,7 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const http = require('http');
 const socketIo = require('socket.io');
+const path = require('path');
 
 // Import routes
 const authRoutes = require('./routes/auth');
@@ -11,6 +12,10 @@ const productRoutes = require('./routes/products');
 const userRoutes = require('./routes/users');
 const requestRoutes = require('./routes/requests');
 const adminRoutes = require('./routes/admin');
+const warehouseRoutes = require('./routes/warehouse');
+const orderRoutes = require('./routes/orders');
+const deliveryRoutes = require('./routes/delivery');
+const paymentRoutes = require('./routes/payments');
 
 dotenv.config();
 
@@ -18,7 +23,7 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
-    origin: "http://localhost:3000",
+    origin: ["http://localhost:3000", "http://localhost:3001"],
     methods: ["GET", "POST"]
   }
 });
@@ -26,7 +31,11 @@ const io = socketIo(server, {
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use('/images', express.static('D:/FarmConnect/images'));
+
+// Static images
+const uploadsDir = path.join(__dirname, 'uploads');
+app.use('/images', express.static(uploadsDir));
+app.use('/images/products', express.static(path.join(uploadsDir, 'products')));
 
 // MongoDB connection
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/farmconnect', {
@@ -42,6 +51,12 @@ io.on('connection', (socket) => {
   
   socket.on('join-room', (userId) => {
     socket.join(userId);
+    console.log(`User ${userId} joined room`);
+  });
+  
+  socket.on('leave-room', (userId) => {
+    socket.leave(userId);
+    console.log(`User ${userId} left room`);
   });
   
   socket.on('disconnect', () => {
@@ -61,6 +76,10 @@ app.use('/api/products', productRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/requests', requestRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/warehouse', warehouseRoutes);
+app.use('/api/orders', orderRoutes);
+app.use('/api/delivery', deliveryRoutes);
+app.use('/api/payments', paymentRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

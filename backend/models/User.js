@@ -20,7 +20,7 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['buyer', 'seller', 'admin'],
+    enum: ['customer', 'farmer', 'delivery_partner', 'admin'],
     required: true
   },
   phone: {
@@ -32,7 +32,11 @@ const userSchema = new mongoose.Schema({
     city: String,
     state: String,
     zipCode: String,
-    country: { type: String, default: 'India' }
+    country: { type: String, default: 'India' },
+    coordinates: {
+      latitude: Number,
+      longitude: Number
+    }
   },
   profileImage: {
     type: String,
@@ -51,6 +55,44 @@ const userSchema = new mongoose.Schema({
   totalRatings: {
     type: Number,
     default: 0
+  },
+  // Farmer-specific fields
+  farmDetails: {
+    farmName: String,
+    farmType: String,
+    verificationDocuments: [String],
+    isVerified: { type: Boolean, default: false },
+    farmAddress: {
+      street: String,
+      city: String,
+      state: String,
+      zipCode: String,
+      coordinates: {
+        latitude: Number,
+        longitude: Number
+      }
+    }
+  },
+  // Delivery Partner-specific fields
+  deliveryDetails: {
+    vehicleType: String,
+    vehicleNumber: String,
+    licenseNumber: String,
+    isAvailable: { type: Boolean, default: true },
+    currentLocation: {
+      latitude: Number,
+      longitude: Number
+    },
+    isOnline: { type: Boolean, default: false }
+  },
+  // Common fields
+  preferences: {
+    notifications: {
+      email: { type: Boolean, default: true },
+      sms: { type: Boolean, default: true },
+      push: { type: Boolean, default: true }
+    },
+    language: { type: String, default: 'en' }
   }
 }, {
   timestamps: true
@@ -73,5 +115,12 @@ userSchema.pre('save', async function(next) {
 userSchema.methods.comparePassword = async function(candidatePassword) {
   return bcrypt.compare(candidatePassword, this.password);
 };
+
+// Indexes for better performance
+userSchema.index({ email: 1 });
+userSchema.index({ role: 1 });
+userSchema.index({ 'address.coordinates': '2dsphere' });
+userSchema.index({ 'farmDetails.farmAddress.coordinates': '2dsphere' });
+userSchema.index({ 'deliveryDetails.currentLocation': '2dsphere' });
 
 module.exports = mongoose.model('User', userSchema);

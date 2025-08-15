@@ -9,11 +9,20 @@ const auth = async (req, res, next) => {
       return res.status(401).json({ message: 'No token, authorization denied' });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded;
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret');
+
+    // Normalize payload to { id, role }
+    let userId = decoded?.user?.id || decoded?.id || decoded?.userId;
+    let role = decoded?.user?.role || decoded?.role;
+
+    if (!userId) {
+      return res.status(401).json({ message: 'Token payload invalid' });
+    }
+
+    req.user = { id: userId, role };
     
     // Optionally fetch full user data
-    const user = await User.findById(decoded.userId).select('-password');
+    const user = await User.findById(userId).select('-password');
     if (!user) {
       return res.status(401).json({ message: 'Token is not valid' });
     }

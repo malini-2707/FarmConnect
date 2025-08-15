@@ -7,10 +7,14 @@ const auth = require('../middleware/auth');
 
 const router = express.Router();
 
+// Resolve uploads directory (backend/uploads/products)
+const uploadsRoot = path.join(__dirname, '..', 'uploads');
+const productsUploadDir = path.join(uploadsRoot, 'products');
+
 // Configure multer for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'D:/FarmConnect/images/');
+    cb(null, productsUploadDir);
   },
   filename: (req, file, cb) => {
     cb(null, Date.now() + '-' + Math.round(Math.random() * 1E9) + path.extname(file.originalname));
@@ -32,6 +36,11 @@ const upload = multer({
     }
   }
 });
+
+// Helper: build absolute image URL from filename under uploads/products
+function buildImageUrl(req, filename) {
+  return `${req.protocol}://${req.get('host')}/images/products/${filename}`;
+}
 
 // Get all products with filtering and pagination
 router.get('/', async (req, res) => {
@@ -116,7 +125,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// Create product (sellers only)
+// Create product (farmers only)
 router.post('/', auth, upload.array('images', 5), [
   body('name').trim().isLength({ min: 2 }).withMessage('Product name must be at least 2 characters'),
   body('description').trim().isLength({ min: 10 }).withMessage('Description must be at least 10 characters'),
@@ -131,8 +140,8 @@ router.post('/', auth, upload.array('images', 5), [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    if (req.user.role !== 'seller') {
-      return res.status(403).json({ message: 'Only sellers can create products' });
+    if (req.user.role !== 'farmer') {
+      return res.status(403).json({ message: 'Only farmers can create products' });
     }
 
     const {
@@ -149,14 +158,15 @@ router.post('/', auth, upload.array('images', 5), [
       tags
     } = req.body;
 
-    // Handle uploaded images
-    const uploadedImages = req.files ? req.files.map(file => file.filename) : [];
+    // Handle uploaded images: store absolute URLs
+    const uploadedImageFilenames = req.files ? req.files.map(file => file.filename) : [];
+    const uploadedImageUrls = uploadedImageFilenames.map(fn => buildImageUrl(req, fn));
     
-    // Handle URL images
+    // Handle URL images from client (already URLs)
     const urlImages = req.body.imageUrls ? JSON.parse(req.body.imageUrls) : [];
     
     // Combine both types of images
-    const images = [...uploadedImages, ...urlImages];
+    const images = [...uploadedImageUrls, ...urlImages];
 
     const product = new Product({
       name,
@@ -166,9 +176,9 @@ router.post('/', auth, upload.array('images', 5), [
       unit,
       quantity: parseFloat(quantity),
       images,
-      seller: req.user.userId,
+      seller: req.user.id,
       location: location ? JSON.parse(location) : undefined,
-      isOrganic: isOrganic === 'true',
+      isOrganic: isOrganic === 'true' || isOrganic === true,
       harvestDate: harvestDate ? new Date(harvestDate) : undefined,
       expiryDate: expiryDate ? new Date(expiryDate) : undefined,
       tags: tags ? JSON.parse(tags) : []
@@ -187,7 +197,7 @@ router.post('/', auth, upload.array('images', 5), [
   }
 });
 
-// Update product (seller only)
+// Update product (farmer only)
 router.put('/:id', auth, upload.array('images', 5), async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
@@ -196,7 +206,7 @@ router.put('/:id', auth, upload.array('images', 5), async (req, res) => {
       return res.status(404).json({ message: 'Product not found' });
     }
 
-    if (product.seller.toString() !== req.user.userId) {
+    if (product.seller.toString() !== req.user.id) {
       return res.status(403).json({ message: 'Not authorized to update this product' });
     }
 
@@ -218,8 +228,8 @@ router.put('/:id', auth, upload.array('images', 5), async (req, res) => {
 
     // Handle new images
     if (req.files && req.files.length > 0) {
-      const newImages = req.files.map(file => file.filename);
-      product.images = [...product.images, ...newImages];
+      const newUrls = req.files.map(f => buildImageUrl(req, f.filename));
+      product.images = [...product.images, ...newUrls];
     }
 
     await product.save();
@@ -235,7 +245,7 @@ router.put('/:id', auth, upload.array('images', 5), async (req, res) => {
   }
 });
 
-// Delete product (seller only)
+// Delete product (farmer only)
 router.delete('/:id', auth, async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
@@ -244,7 +254,7 @@ router.delete('/:id', auth, async (req, res) => {
       return res.status(404).json({ message: 'Product not found' });
     }
 
-    if (product.seller.toString() !== req.user.userId) {
+    if (product.seller.toString() !== req.user.id) {
       return res.status(403).json({ message: 'Not authorized to delete this product' });
     }
 
@@ -257,13 +267,13 @@ router.delete('/:id', auth, async (req, res) => {
   }
 });
 
-// Get current user's products (seller)
+// Get current user's products (farmer)
 router.get('/seller/me', auth, async (req, res) => {
   try {
     const { page = 1, limit = 12 } = req.query;
     
     const products = await Product.find({ 
-      seller: req.user.userId,
+      seller: req.user.id,
       isAvailable: true 
     })
       .populate('seller', 'name rating totalRatings location')
@@ -273,7 +283,7 @@ router.get('/seller/me', auth, async (req, res) => {
       .exec();
 
     const total = await Product.countDocuments({ 
-      seller: req.user.userId,
+      seller: req.user.id,
       isAvailable: true 
     });
 

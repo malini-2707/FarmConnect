@@ -31,7 +31,25 @@ const Login = () => {
       
       if (result.success) {
         toast.success('Login successful!');
-        navigate('/dashboard');
+        
+        // Route based on user role
+        const userRole = result.user?.role;
+        switch (userRole) {
+          case 'customer':
+            navigate('/dashboard/customer');
+            break;
+          case 'farmer':
+            navigate('/dashboard/farmer');
+            break;
+          case 'delivery_partner':
+            navigate('/dashboard/delivery');
+            break;
+          case 'admin':
+            navigate('/admin/dashboard');
+            break;
+          default:
+            navigate('/dashboard');
+        }
       } else {
         toast.error(result.error);
       }
@@ -64,7 +82,7 @@ const Login = () => {
                 Email address
               </label>
               <div className="mt-1 relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <div className="input-icon">
                   <FiMail className="h-5 w-5 text-gray-400" />
                 </div>
                 <input
@@ -75,7 +93,7 @@ const Login = () => {
                   required
                   value={formData.email}
                   onChange={handleChange}
-                  className="input-field pl-10"
+                  className="input-field-with-icon"
                   placeholder="Enter your email"
                 />
               </div>
@@ -86,7 +104,7 @@ const Login = () => {
                 Password
               </label>
               <div className="mt-1 relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <div className="input-icon">
                   <FiLock className="h-5 w-5 text-gray-400" />
                 </div>
                 <input
@@ -97,7 +115,7 @@ const Login = () => {
                   required
                   value={formData.password}
                   onChange={handleChange}
-                  className="input-field pl-10 pr-10"
+                  className="input-field-with-icon pr-10"
                   placeholder="Enter your password"
                 />
                 <button
