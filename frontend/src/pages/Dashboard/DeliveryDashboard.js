@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import OrderNotifications from '../../components/Orders/OrderNotifications';
+import OrderNotifications from '../../components/Delivery/OrderNotifications';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import { 
@@ -15,23 +15,39 @@ import {
   FaLocationArrow,
   FaToggleOn,
   FaToggleOff,
-  FaBell
+  FaBell,
+  FaRupeeSign,
+  FaEye,
+  FaFilter,
+  FaSearch,
+  FaChartLine
 } from 'react-icons/fa';
 
 const DeliveryDashboard = () => {
   const { user } = useAuth();
   const [deliveries, setDeliveries] = useState([]);
+  const [availableOrders, setAvailableOrders] = useState([]);
   const [activeDelivery, setActiveDelivery] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isOnline, setIsOnline] = useState(false);
   const [currentLocation, setCurrentLocation] = useState(null);
   const [activeTab, setActiveTab] = useState('available');
+  const [stats, setStats] = useState(null);
+  const [searchRadius, setSearchRadius] = useState(10);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     fetchDeliveries();
+    fetchStats();
     getCurrentLocation();
     startLocationTracking();
   }, []);
+
+  useEffect(() => {
+    if (currentLocation && isOnline) {
+      fetchAvailableOrders();
+    }
+  }, [currentLocation, isOnline, searchRadius]);
 
   const getCurrentLocation = () => {
     if (navigator.geolocation) {
@@ -79,7 +95,9 @@ const DeliveryDashboard = () => {
 
   const updateDeliveryPartnerLocation = async (location) => {
     try {
-      await axios.put('/api/delivery/availability', {
+      await axios.put('/api/order-notifications/update-location', {
+        latitude: location.latitude,
+        longitude: location.longitude,
         isAvailable: isOnline,
         isOnline: isOnline
       });
@@ -103,66 +121,117 @@ const DeliveryDashboard = () => {
 
   const fetchDeliveries = async () => {
     try {
-      const response = await axios.get('/api/orders/delivery');
-      setDeliveries(response.data.orders);
+      const response = await axios.get('/api/delivery/assigned');
+      setDeliveries(response.data.deliveries);
       
       // Find active delivery
-      const active = response.data.orders.find(order => 
-        order.orderStatus === 'picked_up' || order.orderStatus === 'in_transit'
+      const active = response.data.deliveries.find(delivery => 
+        ['accepted', 'picked_up', 'in_transit'].includes(delivery.status)
       );
       setActiveDelivery(active);
     } catch (error) {
-      console.error('Error fetching orders:', error);
-      toast.error('Failed to load orders');
+      console.error('Error fetching deliveries:', error);
+      toast.error('Failed to load deliveries');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchAvailableOrders = async () => {
+    if (!currentLocation) return;
+    
+    setRefreshing(true);
+    try {
+      const response = await axios.get('/api/order-notifications/available-orders', {
+        params: {
+          latitude: currentLocation.latitude,
+          longitude: currentLocation.longitude,
+          maxDistance: searchRadius
+        }
+      });
+      setAvailableOrders(response.data.orders);
+    } catch (error) {
+      console.error('Error fetching available orders:', error);
+      toast.error('Failed to load available orders');
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const fetchStats = async () => {
+    try {
+      const response = await axios.get('/api/order-notifications/stats');
+      setStats(response.data);
+    } catch (error) {
+      console.error('Error fetching stats:', error);
     }
   };
 
   const toggleOnlineStatus = async () => {
     try {
       const newStatus = !isOnline;
-      // Update user availability status
-      await axios.put('/api/users/availability', {
-        isActive: newStatus,
-        location: currentLocation
-      });
+      
+      if (currentLocation) {
+        await axios.put('/api/order-notifications/update-location', {
+          latitude: currentLocation.latitude,
+          longitude: currentLocation.longitude,
+          isAvailable: newStatus,
+          isOnline: newStatus
+        });
+      }
       
       setIsOnline(newStatus);
       toast.success(`You are now ${newStatus ? 'online' : 'offline'}`);
+      
+      if (newStatus) {
+        fetchAvailableOrders();
+      }
     } catch (error) {
       console.error('Error updating availability:', error);
       toast.error('Failed to update availability');
     }
   };
 
-  const acceptDelivery = async (deliveryId) => {
+  const acceptOrder = async (orderId) => {
     try {
-      await axios.put(`/api/orders/${deliveryId}/accept`);
-      toast.success('Delivery accepted successfully');
+      await axios.post(`/api/order-notifications/accept-order/${orderId}`, {
+        estimatedPickupTime: new Date(Date.now() + 30 * 60000),
+        notes: 'Order accepted from dashboard'
+      });
+      toast.success('Order accepted successfully');
       fetchDeliveries();
+      fetchAvailableOrders();
     } catch (error) {
-      console.error('Error accepting delivery:', error);
-      toast.error('Failed to accept delivery');
+      console.error('Error accepting order:', error);
+      toast.error('Failed to accept order');
     }
   };
 
-  const handleStatusUpdate = async (orderId, newStatus) => {
+  const handleOrderAccepted = (order) => {
+    fetchDeliveries();
+    fetchAvailableOrders();
+    setActiveTab('active');
+  };
+
+  const handleStatusUpdate = async (deliveryId, newStatus) => {
     try {
-      await axios.put(`/api/orders/${orderId}/status`, {
+      await axios.put(`/api/delivery/${deliveryId}/status`, {
         status: newStatus,
-        note: `Status updated by delivery partner`
+        note: `Status updated by delivery partner`,
+        latitude: currentLocation?.latitude,
+        longitude: currentLocation?.longitude
       });
       
-      toast.success(`Order ${newStatus.replace('_', ' ')}`);
+      toast.success(`Delivery ${newStatus.replace('_', ' ')}`);
       fetchDeliveries();
       
       if (newStatus === 'delivered') {
         setActiveDelivery(null);
+        fetchStats(); // Refresh stats after completion
       }
     } catch (error) {
       console.error('Error updating status:', error);
-      toast.error('Failed to update order status');
+      toast.error('Failed to update delivery status');
     }
   };
 
@@ -182,9 +251,9 @@ const DeliveryDashboard = () => {
   };
 
   const activeDeliveries = deliveries.filter(d => 
-    ['ready_for_pickup', 'picked_up', 'in_transit'].includes(d.orderStatus)
+    ['accepted', 'picked_up', 'in_transit'].includes(d.status)
   );
-  const completedDeliveries = deliveries.filter(d => d.orderStatus === 'delivered');
+  const completedDeliveries = deliveries.filter(d => d.status === 'delivered');
 
   if (loading) {
     return (
@@ -376,7 +445,7 @@ const DeliveryDashboard = () => {
                   <div className="flex justify-between items-center mb-4">
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900">
-                        Order #{delivery.orderNumber}
+                        Delivery #{delivery.order?.orderNumber || 'N/A'}
                       </h3>
                       <p className="text-sm text-gray-600">
                         Completed on {new Date(delivery.deliveryTime).toLocaleDateString()}

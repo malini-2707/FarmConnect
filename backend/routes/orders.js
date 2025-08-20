@@ -121,27 +121,30 @@ router.post('/', [
       });
     }
 
-    // Notify all available delivery partners about new order
-    const availableDeliveryPartners = await User.find({
-      role: 'delivery_partner'
-    }).select('_id');
+    // Trigger location-based notifications to delivery partners
+    if (req.io && deliveryAddress.coordinates) {
+      try {
+        // Import the notification function
+        const axios = require('axios');
+        
+        // Call our notification service to notify nearby delivery partners
+        const notificationResponse = await axios.post(`${process.env.API_BASE_URL || 'http://localhost:5000'}/api/order-notifications/notify-delivery-partners`, {
+          orderId: order._id,
+          deliveryLocation: deliveryAddress.coordinates,
+          maxDistance: 15 // 15km radius
+        }, {
+          headers: {
+            'Authorization': req.headers.authorization
+          }
+        });
 
-    // Emit real-time updates to all relevant parties
-    if (req.io) {
+        console.log(`Order ${order.orderNumber} notifications sent to ${notificationResponse.data.availablePartners} delivery partners`);
+      } catch (error) {
+        console.error('Error sending delivery partner notifications:', error.message);
+      }
+
       // Notify farmer about new order
       req.io.to(farmerId.toString()).emit('new-order', { orderId: order._id });
-      
-      // Notify all delivery partners about new order opportunity
-      if (availableDeliveryPartners.length > 0) {
-        availableDeliveryPartners.forEach(partner => {
-          req.io.to(partner._id.toString()).emit('new-order-available', { 
-            orderId: order._id,
-            orderNumber: order.orderNumber,
-            deliveryAddress: order.deliveryAddress,
-            totalAmount: order.totalAmount
-          });
-        });
-      }
     }
 
     res.status(201).json({
