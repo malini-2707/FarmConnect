@@ -5,6 +5,7 @@ const dotenv = require('dotenv');
 const http = require('http');
 const socketIo = require('socket.io');
 const path = require('path');
+const fs = require('fs');
 
 // Import routes
 const authRoutes = require('./routes/auth');
@@ -16,6 +17,13 @@ const warehouseRoutes = require('./routes/warehouse');
 const orderRoutes = require('./routes/orders');
 const deliveryRoutes = require('./routes/delivery');
 const paymentRoutes = require('./routes/payments');
+const analyticsRoutes = require('./routes/analytics');
+const searchRoutes = require('./routes/search');
+const recommendationRoutes = require('./routes/recommendations');
+const stripeRoutes = require('./routes/payments_stripe');
+const razorpayRoutes = require('./routes/payments_razorpay');
+const paypalRoutes = require('./routes/payments_paypal');
+const adminBootstrapRoute = require('./routes/admin_bootstrap');
 
 dotenv.config();
 
@@ -28,14 +36,22 @@ const io = socketIo(server, {
   }
 });
 
+// Stripe webhook must use raw body
+app.use('/api/payments/stripe/webhook', express.raw({ type: 'application/json' }));
+
 // Middleware
 app.use(cors());
 app.use(express.json());
 
 // Static images
 const uploadsDir = path.join(__dirname, 'uploads');
+// Ensure uploads subdirectories exist
+[uploadsDir, path.join(uploadsDir, 'products'), path.join(uploadsDir, 'profiles')]
+  .forEach(dir => { if (!fs.existsSync(dir)) { fs.mkdirSync(dir, { recursive: true }); } });
+
 app.use('/images', express.static(uploadsDir));
 app.use('/images/products', express.static(path.join(uploadsDir, 'products')));
+app.use('/images/profiles', express.static(path.join(uploadsDir, 'profiles')));
 
 // MongoDB connection
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/farmconnect', {
@@ -80,6 +96,13 @@ app.use('/api/warehouse', warehouseRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/delivery', deliveryRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use('/api/analytics', analyticsRoutes);
+app.use('/api/search', searchRoutes);
+app.use('/api/recommendations', recommendationRoutes);
+app.use('/api/payments/stripe', stripeRoutes);
+app.use('/api/payments/razorpay', razorpayRoutes);
+app.use('/api/payments/paypal', paypalRoutes);
+app.use('/api/admin/bootstrap', adminBootstrapRoute);
 
 // Health check
 app.get('/api/health', (req, res) => {

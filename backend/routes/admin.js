@@ -1,21 +1,23 @@
 const express = require('express');
 const router = express.Router();
-const adminAuth = require('../middleware/adminAuth');
+const auth = require('../middleware/auth');
+const admin = require('../middleware/admin');
 const User = require('../models/User');
 const Product = require('../models/Product');
 const Request = require('../models/Request');
 const Transport = require('../models/Transport');
 const { body, validationResult } = require('express-validator');
 
-// Apply admin authentication to all routes
-router.use(adminAuth);
+// Apply auth then admin check to all routes
+router.use(auth);
+router.use(admin);
 
 // ==================== DASHBOARD STATISTICS ====================
 router.get('/stats', async (req, res) => {
   try {
     const totalUsers = await User.countDocuments();
-    const totalFarmers = await User.countDocuments({ role: 'seller' });
-    const totalConsumers = await User.countDocuments({ role: 'buyer' });
+    const totalFarmers = await User.countDocuments({ role: 'farmer' });
+    const totalConsumers = await User.countDocuments({ role: 'customer' });
     const totalProducts = await Product.countDocuments();
     const totalOrders = await Request.countDocuments();
     const pendingOrders = await Request.countDocuments({ status: 'pending' });

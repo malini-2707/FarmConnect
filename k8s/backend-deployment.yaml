@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: farmconnect-backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: farmconnect-backend
+  template:
+    metadata:
+      labels:
+        app: farmconnect-backend
+    spec:
+      containers:
+        - name: api
+          image: yourrepo/farmconnect-backend:latest
+          ports:
+            - containerPort: 5000
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: MONGODB_URI
+              valueFrom:
+                secretKeyRef:
+                  name: backend-secrets
+                  key: mongodb_uri
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 5000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 5000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-svc
+spec:
+  selector:
+    app: farmconnect-backend
+  ports:
+    - port: 80
+      targetPort: 5000
+
+

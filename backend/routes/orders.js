@@ -99,7 +99,20 @@ router.post('/', [
 
     await order.save();
 
-    // Skip payment record creation for now to avoid errors
+    // Create initial payment record (pending)
+    try {
+      const payment = new Payment({
+        order: order._id,
+        amount: totalAmount,
+        currency: 'INR',
+        paymentMethod,
+        paymentStatus: paymentMethod === 'cod' ? 'pending' : 'pending',
+        totalAmount: totalAmount
+      });
+      await payment.save();
+    } catch (e) {
+      console.error('Payment record creation error:', e);
+    }
 
     // Update product quantities
     for (const item of products) {

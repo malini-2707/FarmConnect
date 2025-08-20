@@ -23,6 +23,10 @@ FarmConnect is a comprehensive web application that connects farmers directly wi
 - **Real-time**: Socket.io for notifications
 - **Authentication**: JWT tokens
 - **File Upload**: Multer for image handling
+ - **Payments**: Stripe, Razorpay, PayPal (webhooks supported)
+ - **Analytics**: MongoDB aggregation pipelines
+ - **Search & Recs**: MongoDB text search + trending/personalized recommendations
+ - **PWA**: Service worker caching for offline support
 
 ## Quick Start
 
@@ -101,6 +105,23 @@ FarmConnect/
 - `POST /api/products` - Create product (sellers only)
 - `PUT /api/products/:id` - Update product
 - `DELETE /api/products/:id` - Delete product
+
+### Analytics
+- `GET /api/analytics/admin/overview?from&to` - Admin sales, top products/categories
+- `GET /api/analytics/farmer/:farmerId?from&to` - Farmer earnings and product insights
+
+### Search & Recommendations
+- `GET /api/search/products?q=&limit=&category=` - Text search with ranking
+- `GET /api/recommendations/trending?days=&limit=` - Trending products
+- `GET /api/recommendations/personalized?days=&limit=` - Personalized recommendations (auth)
+
+### Payments (Gateways)
+- `POST /api/payments/stripe/create-intent` - Create Stripe PaymentIntent
+- `POST /api/payments/stripe/webhook` - Stripe webhook
+- `POST /api/payments/razorpay/create-order` - Create Razorpay order
+- `POST /api/payments/razorpay/webhook` - Razorpay webhook
+- `POST /api/payments/paypal/create-order` - Create PayPal order
+- `POST /api/payments/paypal/capture/:orderId` - Capture PayPal order
 
 ### Requests
 - `POST /api/requests` - Create purchase request

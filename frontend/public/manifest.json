@@ -11,5 +11,7 @@
   "start_url": ".",
   "display": "standalone",
   "theme_color": "#16a34a",
-  "background_color": "#ffffff"
+  "background_color": "#ffffff",
+  "description": "Farm-to-consumer marketplace PWA",
+  "orientation": "portrait-primary"
 }

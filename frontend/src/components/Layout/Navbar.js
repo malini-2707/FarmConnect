@@ -16,6 +16,14 @@ const Navbar = () => {
     navigate('/');
   };
 
+  const dashboardHref = user?.role === 'admin'
+    ? '/dashboard/admin'
+    : user?.role === 'farmer'
+      ? '/dashboard/farmer'
+      : user?.role === 'delivery_partner'
+        ? '/dashboard/delivery'
+        : '/dashboard/customer';
+
   return (
     <nav className="bg-white shadow-lg sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -37,7 +45,7 @@ const Navbar = () => {
             
             {isAuthenticated ? (
               <>
-                <Link to="/dashboard" className="navbar-link">Dashboard</Link>
+                <Link to={dashboardHref} className="navbar-link">{user?.role === 'admin' ? 'Admin' : 'Dashboard'}</Link>
                 
                 {/* Notifications */}
                 <div className="relative">
@@ -126,7 +134,7 @@ const Navbar = () => {
               
               {isAuthenticated ? (
                 <>
-                  <Link to="/dashboard" className="block px-3 py-2 navbar-link">Dashboard</Link>
+                  <Link to={dashboardHref} className="block px-3 py-2 navbar-link">{user?.role === 'admin' ? 'Admin' : 'Dashboard'}</Link>
                   <Link to="/profile" className="block px-3 py-2 navbar-link">Profile</Link>
                   <button
                     onClick={handleLogout}

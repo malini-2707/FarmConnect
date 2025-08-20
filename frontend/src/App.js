@@ -17,7 +17,7 @@ import Home from './pages/Home';
 import Login from './pages/Auth/Login';
 import Register from './pages/Auth/Register';
 import AdminLogin from './pages/Admin/AdminLogin';
-import AdminDashboard from './pages/Admin/AdminDashboard';
+import AdminRoot from './pages/Admin/AdminRoot';
 import WarehouseManagement from './pages/Admin/WarehouseManagement';
 import ProductDetail from './pages/Products/ProductDetail';
 import Products from './pages/Products/Products';
@@ -25,6 +25,7 @@ import Profile from './pages/Profile/Profile';
 
 // Dashboard Pages
 import Dashboard from './pages/Dashboard/Dashboard';
+import DashboardEntry from './pages/Dashboard/DashboardEntry';
 import CustomerDashboard from './pages/Dashboard/CustomerDashboard';
 import SellerDashboard from './pages/Dashboard/SellerDashboard';
 import DeliveryDashboard from './pages/Dashboard/DeliveryDashboard';
@@ -49,7 +50,7 @@ function App() {
                 {/* Protected Routes */}
                 <Route path="/dashboard" element={
                   <ProtectedRoute>
-                    <Dashboard />
+                    <DashboardEntry />
                   </ProtectedRoute>
                 } />
 
@@ -72,9 +73,9 @@ function App() {
                   </ProtectedRoute>
                 } />
 
-                <Route path="/dashboard/admin" element={
+                <Route path="/dashboard/admin/*" element={
                   <ProtectedRoute allowedRoles={['admin']}>
-                    <AdminDashboard />
+                    <AdminRoot />
                   </ProtectedRoute>
                 } />
 

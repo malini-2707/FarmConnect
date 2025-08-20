@@ -6,7 +6,7 @@ const auth = require('../middleware/auth');
 
 const router = express.Router();
 
-// Create a new request (buyers only)
+// Create a new request (customers only)
 router.post('/', auth, [
   body('product').isMongoId().withMessage('Valid product ID is required'),
   body('quantity').isFloat({ min: 1 }).withMessage('Quantity must be at least 1'),
@@ -18,8 +18,8 @@ router.post('/', auth, [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    if (req.user.role !== 'buyer') {
-      return res.status(403).json({ message: 'Only buyers can create requests' });
+    if (req.user.role !== 'customer') {
+      return res.status(403).json({ message: 'Only customers can create requests' });
     }
 
     const { product: productId, quantity, message, proposedPrice, deliveryAddress, deliveryDate } = req.body;
@@ -40,7 +40,7 @@ router.post('/', auth, [
 
     // Create request
     const request = new Request({
-      buyer: req.user.userId,
+      buyer: req.user.id,
       seller: product.seller._id,
       product: productId,
       quantity,
@@ -76,10 +76,10 @@ router.get('/my-requests', auth, async (req, res) => {
     const { status, page = 1, limit = 10 } = req.query;
     
     let query = {};
-    if (req.user.role === 'buyer') {
-      query.buyer = req.user.userId;
+    if (req.user.role === 'customer') {
+      query.buyer = req.user.id;
     } else {
-      query.seller = req.user.userId;
+      query.seller = req.user.id;
     }
 
     if (status && status !== 'all') {
@@ -122,8 +122,8 @@ router.get('/:id', auth, async (req, res) => {
     }
 
     // Check authorization
-    if (request.buyer._id.toString() !== req.user.userId && 
-        request.seller._id.toString() !== req.user.userId) {
+    if (request.buyer._id.toString() !== req.user.id && 
+        request.seller._id.toString() !== req.user.id) {
       return res.status(403).json({ message: 'Not authorized to view this request' });
     }
 
@@ -154,12 +154,12 @@ router.patch('/:id/status', auth, async (req, res) => {
     }
 
     // Authorization checks
-    if (status === 'cancelled' && request.buyer._id.toString() !== req.user.userId) {
+    if (status === 'cancelled' && request.buyer._id.toString() !== req.user.id) {
       return res.status(403).json({ message: 'Only buyers can cancel requests' });
     }
 
     if (['accepted', 'rejected', 'completed'].includes(status) && 
-        request.seller._id.toString() !== req.user.userId) {
+        request.seller._id.toString() !== req.user.id) {
       return res.status(403).json({ message: 'Only sellers can accept/reject/complete requests' });
     }
 
@@ -196,7 +196,7 @@ router.delete('/:id', auth, async (req, res) => {
     }
 
     // Only buyer can delete their own requests
-    if (request.buyer.toString() !== req.user.userId) {
+    if (request.buyer.toString() !== req.user.id) {
       return res.status(403).json({ message: 'Not authorized to delete this request' });
     }
 

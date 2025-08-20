@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: farmconnect-frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: farmconnect-frontend
+  template:
+    metadata:
+      labels:
+        app: farmconnect-frontend
+    spec:
+      containers:
+        - name: web
+          image: yourrepo/farmconnect-frontend:latest
+          ports:
+            - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-svc
+spec:
+  type: ClusterIP
+  selector:
+    app: farmconnect-frontend
+  ports:
+    - port: 80
+      targetPort: 80
+
+

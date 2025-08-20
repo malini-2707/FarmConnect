@@ -6,10 +6,12 @@ const auth = require('../middleware/auth');
 
 const router = express.Router();
 
-// Configure multer for profile image uploads
+// Configure multer for profile image uploads (reuse backend/uploads)
+const uploadsRoot = path.join(__dirname, '..', 'uploads');
+const profileUploadDir = path.join(uploadsRoot, 'profiles');
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'D:/FarmConnect/images/');
+    cb(null, profileUploadDir);
   },
   filename: (req, file, cb) => {
     cb(null, Date.now() + '-' + Math.round(Math.random() * 1E9) + path.extname(file.originalname));
@@ -35,7 +37,7 @@ const upload = multer({
 // Get user profile
 router.get('/profile', auth, async (req, res) => {
   try {
-    const user = await User.findById(req.user.userId).select('-password');
+    const user = await User.findById(req.user.id).select('-password');
     res.json(user);
   } catch (error) {
     console.error('Get profile error:', error);
@@ -46,7 +48,7 @@ router.get('/profile', auth, async (req, res) => {
 // Update user profile
 router.put('/profile', auth, upload.single('profileImage'), async (req, res) => {
   try {
-    const user = await User.findById(req.user.userId);
+    const user = await User.findById(req.user.id);
     
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -66,12 +68,14 @@ router.put('/profile', auth, upload.single('profileImage'), async (req, res) => 
 
     // Handle profile image upload
     if (req.file) {
-      user.profileImage = req.file.filename;
+      // Save URL to image under /images/profiles
+      const imageUrl = `${req.protocol}://${req.get('host')}/images/profiles/${req.file.filename}`;
+      user.profileImage = imageUrl;
     }
 
     await user.save();
 
-    const updatedUser = await User.findById(req.user.userId).select('-password');
+    const updatedUser = await User.findById(req.user.id).select('-password');
     res.json({
       message: 'Profile updated successfully',
       user: updatedUser

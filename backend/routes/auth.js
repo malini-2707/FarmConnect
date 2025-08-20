@@ -4,6 +4,8 @@ const jwt = require('jsonwebtoken');
 const { body, validationResult } = require('express-validator');
 const User = require('../models/User');
 const auth = require('../middleware/auth');
+const multer = require('multer');
+const path = require('path');
 
 const router = express.Router();
 
@@ -169,3 +171,89 @@ router.get('/me', auth, async (req, res) => {
 });
 
 module.exports = router;
+
+// ================= Additional Auth endpoints to match frontend =================
+
+// Multer storage for profile images under backend/uploads/profiles
+const uploadsRoot = path.join(__dirname, '..', 'uploads');
+const profileUploadDir = path.join(uploadsRoot, 'profiles');
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, profileUploadDir);
+  },
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + '-' + Math.round(Math.random() * 1e9) + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({ storage });
+
+// Get profile (alias to /api/users/profile)
+router.get('/profile', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('-password');
+    res.json(user);
+  } catch (error) {
+    console.error('Auth profile error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Update profile (alias to /api/users/profile)
+router.put('/profile', auth, upload.single('profileImage'), async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const updatable = ['name', 'phone', 'address'];
+    updatable.forEach(field => {
+      if (req.body[field] !== undefined) {
+        if (field === 'address' && typeof req.body[field] === 'string') {
+          user[field] = JSON.parse(req.body[field]);
+        } else {
+          user[field] = req.body[field];
+        }
+      }
+    });
+
+    if (req.file) {
+      const imageUrl = `${req.protocol}://${req.get('host')}/images/profiles/${req.file.filename}`;
+      user.profileImage = imageUrl;
+    }
+
+    await user.save();
+    const updated = await User.findById(req.user.id).select('-password');
+    res.json({ message: 'Profile updated successfully', user: updated });
+  } catch (error) {
+    console.error('Auth update profile error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Change password
+router.put('/change-password', auth, [
+  body('currentPassword').exists().withMessage('Current password is required'),
+  body('newPassword').isLength({ min: 6 }).withMessage('New password must be at least 6 characters')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { currentPassword, newPassword } = req.body;
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const isMatch = await user.comparePassword(currentPassword);
+    if (!isMatch) return res.status(400).json({ message: 'Current password is incorrect' });
+
+    user.password = newPassword;
+    await user.save();
+
+    res.json({ message: 'Password changed successfully' });
+  } catch (error) {
+    console.error('Change password error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});

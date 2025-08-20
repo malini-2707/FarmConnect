@@ -28,10 +28,13 @@ const AdminLogin = () => {
       const response = await axios.post('/api/auth/login', formData);
       
       if (response.data.user.role === 'admin') {
+        // persist tokens for both admin and app auth
         localStorage.setItem('adminToken', response.data.token);
         localStorage.setItem('adminUser', JSON.stringify(response.data.user));
+        localStorage.setItem('token', response.data.token);
         toast.success('Admin login successful!');
-        navigate('/admin/dashboard');
+        // force reload so AuthProvider picks up token on initial state
+        window.location.assign('/dashboard/admin');
       } else {
         toast.error('Access denied. Admin privileges required.');
       }
